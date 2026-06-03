@@ -8,9 +8,9 @@
 Таймер обновляется в реальном времени и меняет цвет при окончании.
 
 - Версия: 1.2  
-- Автор: Anton  
+- Автор: bazarov  
 - Ссылка на скрипт:  
-https://raw.githubusercontent.com/anreman/gw_scripts/main/golf.user.js
+https://raw.githubusercontent.com/anreman/gw_scripts/main/GW Golf Timer
 
 ---
 
