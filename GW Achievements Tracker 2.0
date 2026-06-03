@@ -1,0 +1,157 @@
+// ==UserScript==
+// @name         GW Achievements Tracker 2.0
+// @namespace    gwars
+// @version      2.0
+// @description  Отслеживание прогресса достижений
+// @match        https://www.gwars.io/info.ach.php*
+// @grant        none
+// @author       bazarov
+// ==/UserScript==
+
+(function () {
+    'use strict';
+
+    const STORAGE_KEY = 'gw_achievements_base_v2';
+
+    let baseData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+
+    const achievements = [];
+
+    document.querySelectorAll('td.simplewhitebg').forEach(td => {
+
+        const html = td.innerHTML;
+
+        const regex = /([^<>]+?)<br[^>]*>[\s\S]*?\(([\d,]+)\s+из\s+([\d,]+)\)/gi;
+
+        let match;
+
+        while ((match = regex.exec(html)) !== null) {
+
+            const title = match[1]
+                .replace(/&nbsp;/g, ' ')
+                .trim();
+
+            const current = parseInt(
+                match[2].replace(/,/g, ''),
+                10
+            );
+
+            const target = parseInt(
+                match[3].replace(/,/g, ''),
+                10
+            );
+
+            achievements.push({
+                title,
+                current,
+                target,
+                td
+            });
+        }
+    });
+
+    function saveCurrentAsBase() {
+
+        const data = {};
+
+        achievements.forEach(a => {
+            data[a.title] = a.current;
+        });
+
+        localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify(data)
+        );
+
+        location.reload();
+    }
+
+    function resetData() {
+
+        if (!confirm('Удалить сохранённую базу?'))
+            return;
+
+        localStorage.removeItem(STORAGE_KEY);
+
+        location.reload();
+    }
+
+    let changedCount = 0;
+    let totalGain = 0;
+
+    achievements.forEach(a => {
+
+        const base = baseData[a.title];
+
+        if (base === undefined)
+            return;
+
+        const diff = a.current - base;
+
+        if (diff === 0)
+            return;
+
+        changedCount++;
+        totalGain += diff;
+
+        const marker = document.createElement('span');
+
+        marker.textContent = ` ▲ +${diff}`;
+
+        marker.style.fontWeight = 'bold';
+        marker.style.color = '#f5945c';
+        marker.style.fontSize = '12px';
+
+        const textNodes = [...a.td.childNodes];
+
+        for (const node of textNodes) {
+
+            if (
+                node.nodeType === 3 &&
+                node.textContent.includes(a.title)
+            ) {
+
+                node.parentNode.insertBefore(
+                    marker,
+                    node.nextSibling
+                );
+
+                break;
+            }
+        }
+    });
+
+    const panel = document.createElement('div');
+
+    panel.style.position = 'fixed';
+    panel.style.top = '120px';
+    panel.style.right = '100px';
+    panel.style.zIndex = '99999';
+    panel.style.background = '#f5fff5';
+    panel.style.border = '1px solid #669966';
+    panel.style.padding = '20px';
+    panel.style.fontSize = '12px';
+    panel.style.minWidth = '160px';
+
+    panel.innerHTML = `
+        <div><b>Трекер достижений</b></div>
+        <hr>
+        Изменено достижений: <b>${changedCount}</b></b><br><br>
+    `;
+
+const saveBtn = document.createElement('button');
+saveBtn.textContent = '🔄 Сбросить счетчики';
+
+saveBtn.onclick = function () {
+
+    if (!confirm('Сделать текущие значения новой точкой отсчёта?'))
+        return;
+
+    saveCurrentAsBase();
+};
+
+panel.appendChild(saveBtn);
+
+    document.body.appendChild(panel);
+
+})();
