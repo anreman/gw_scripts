@@ -10,7 +10,7 @@
 - Версия: 1.2  
 - Автор: Anton  
 - Ссылка на скрипт:  
-https://raw.githubusercontent.com/USERNAME/REPO/main/golf.user.js
+https://raw.githubusercontent.com/anreman/gw_scripts/main/golf.user.js
 
 ---
 
@@ -20,7 +20,7 @@ https://raw.githubusercontent.com/USERNAME/REPO/main/golf.user.js
 - Версия: 1.0  
 - Автор: Anton  
 - Ссылка на скрипт:  
-https://raw.githubusercontent.com/USERNAME/REPO/main/SECOND_FILE.user.js
+https://raw.githubusercontent.com/anreman/gw_scripts/main/SECOND_FILE.user.js
 
 ---
 
