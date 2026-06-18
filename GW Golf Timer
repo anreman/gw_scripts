@@ -1,34 +1,32 @@
 // ==UserScript==
 // @name         GW Golf Timer
 // @namespace    gwars
-// @version      1.2
-// @description  Показывает таймер бонуса гольфа в верхней панели
+// @version      1.5
+// @description  Показывает таймер бонуса гольфа и очки в верхней панели (без секунд)
 // @match        https://www.gwars.io/*
 // @grant        none
-// @author       bazarov
+// @author       bazarov (assisted by AI)
 // ==/UserScript==
 
 (function () {
     'use strict';
 
     let remainingSeconds = 0;
+    let golfPoints = localStorage.getItem('gwGolfPoints') || '?';
 
     function formatTime(sec) {
         const h = Math.floor(sec / 3600);
         const m = Math.floor((sec % 3600) / 60);
-        const s = sec % 60;
 
         return (
             String(h).padStart(2, '0') + ':' +
-            String(m).padStart(2, '0') + ':' +
-            String(s).padStart(2, '0')
+            String(m).padStart(2, '0')
         );
     }
 
-    const bonusElement = document.getElementById('bonus');
-    if (!bonusElement) return;
+    const hpElement = document.getElementById('hpheader');
+    if (!hpElement) return;
 
-    // CSS для мигания
     const style = document.createElement('style');
     style.innerHTML = `
     @keyframes gwBlink {
@@ -45,31 +43,30 @@
     `;
     document.head.appendChild(style);
 
-    const separator = document.createTextNode(' | ');
-
     const golfSpan = document.createElement('span');
     golfSpan.id = 'golfTimer';
-    golfSpan.innerHTML = '⛳ <b style="color:#009900">--</b>';
+    golfSpan.style.cursor = 'pointer';
 
-    bonusElement.parentNode.insertBefore(
-        separator,
-        bonusElement.nextSibling
-    );
+    golfSpan.addEventListener('click', function () {
+        window.location.href = 'https://www.gwars.io/golf.php';
+    });
 
-    bonusElement.parentNode.insertBefore(
-        golfSpan,
-        separator.nextSibling
-    );
+    hpElement.insertAdjacentElement('afterend', golfSpan);
 
     function updateDisplay() {
+
         const expired = remainingSeconds <= 0;
 
         const value = !expired
             ? formatTime(remainingSeconds)
-            : '00:00:00';
+            : '00:00';
 
         golfSpan.innerHTML =
-            '⛳ <b>' + value + '</b>';
+            ' | ⛳ <b>' +
+            value +
+            '</b> (' +
+            golfPoints +
+            ')';
 
         const inner = golfSpan.querySelector('b');
 
@@ -83,46 +80,68 @@
     }
 
     async function loadGolfTimer() {
+
         try {
-            const response = await fetch('https://www.gwars.io/golf.php', {
-                credentials: 'include'
-            });
+
+            const response = await fetch(
+                'https://www.gwars.io/golf.php',
+                {
+                    credentials: 'include'
+                }
+            );
 
             const buffer = await response.arrayBuffer();
             const decoder = new TextDecoder('windows-1251');
             const html = decoder.decode(buffer);
 
-            const match = html.match(
-                /заканчивается через\s*(\d{2}):(\d{2}):(\d{2})/i
+            // ⛳ Таймер HH:MM
+            const timerMatch = html.match(
+                /заканчивается через[\s\u00A0]*(\d{1,2})\s*:\s*(\d{2})/i
             );
 
-            if (!match) {
+            if (timerMatch) {
+
+                const [, h, m] = timerMatch;
+
+                remainingSeconds =
+                    parseInt(h, 10) * 3600 +
+                    parseInt(m, 10) * 60;
+
+                if (isNaN(remainingSeconds)) {
+                    remainingSeconds = 0;
+                }
+
+            } else {
                 remainingSeconds = 0;
-                updateDisplay();
-                return;
             }
 
-            remainingSeconds =
-                parseInt(match[1], 10) * 3600 +
-                parseInt(match[2], 10) * 60 +
-                parseInt(match[3], 10);
+            // 🎯 Очки
+            const pointsMatch = html.match(
+                /Накоплено очков:\s*(\d+)/i
+            );
+
+            if (pointsMatch) {
+                golfPoints = pointsMatch[1];
+                localStorage.setItem('gwGolfPoints', golfPoints);
+            }
 
             updateDisplay();
 
         } catch (e) {
+
             console.log('GW Golf Timer error:', e);
         }
     }
 
-    // локальный тик
     setInterval(() => {
+
         if (remainingSeconds > 0) {
             remainingSeconds--;
             updateDisplay();
         }
+
     }, 1000);
 
-    // синхронизация с сервером
     setInterval(loadGolfTimer, 60000);
 
     loadGolfTimer();
