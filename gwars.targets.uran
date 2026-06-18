@@ -1,0 +1,173 @@
+// ==UserScript==
+// @name         GW Targets Uran Organizer
+// @namespace    gwars.targets.uran
+// @version      1.3
+// @description  Сортировка рудников по количеству + подсветка 3-клеточных
+// @match        https://www.gwars.io/syndicate.php*
+// @grant        none
+// @author       bazarov (assisted by AI)
+// ==/UserScript==
+
+(function () {
+    'use strict';
+
+    function findTargetsTable(titleText) {
+        const cells = [...document.querySelectorAll('td')];
+
+        for (const td of cells) {
+            if (td.textContent.trim().includes(titleText)) {
+                return td.closest('table');
+            }
+        }
+
+        return null;
+    }
+
+    function getSyndId(row) {
+        const txt = row.cells[0]?.innerText || '';
+        const m = txt.match(/#(\d+)/);
+        return m ? parseInt(m[1], 10) : 999999;
+    }
+
+    function getMineType(row) {
+        const txt = row.innerText;
+
+        if (txt.includes('Урановый рудник (2)')) return 2;
+        if (txt.includes('Урановый рудник (3)')) return 3;
+
+        return 99;
+    }
+
+    function process() {
+
+        const mineTable = findTargetsTable('Топ-50 доступных для нападения рудников');
+        const objectTable = findTargetsTable('Топ-50 прибыльных объектов у врагов');
+
+        if (!mineTable || !objectTable) return;
+
+        if (mineTable.dataset.gwProcessed) return;
+        mineTable.dataset.gwProcessed = '1';
+
+        // Рудники наверх
+        objectTable.parentNode.insertBefore(mineTable, objectTable);
+
+        const rows = [...mineTable.querySelectorAll('tr')];
+
+        const mineRows = rows.filter(r =>
+            r.innerText.includes('Урановый рудник')
+        );
+
+        if (!mineRows.length) return;
+
+        const syndCounts2 = new Map();
+        const syndCounts3 = new Map();
+
+        for (const row of mineRows) {
+
+            const sid = getSyndId(row);
+            const type = getMineType(row);
+
+            if (type === 2) {
+                syndCounts2.set(sid, (syndCounts2.get(sid) || 0) + 1);
+            }
+
+            if (type === 3) {
+                syndCounts3.set(sid, (syndCounts3.get(sid) || 0) + 1);
+            }
+        }
+
+        mineRows.sort((a, b) => {
+
+            const typeA = getMineType(a);
+            const typeB = getMineType(b);
+
+            if (typeA !== typeB) {
+                return typeA - typeB;
+            }
+
+            const sidA = getSyndId(a);
+            const sidB = getSyndId(b);
+
+            const counts =
+                typeA === 2 ? syndCounts2 : syndCounts3;
+
+            const countA = counts.get(sidA) || 0;
+            const countB = counts.get(sidB) || 0;
+
+            if (countA !== countB) {
+                return countB - countA;
+            }
+
+            return sidA - sidB;
+        });
+
+        let tbody = mineTable.querySelector('tbody');
+
+        if (!tbody) {
+            tbody = mineTable;
+        }
+
+        let prevType = null;
+        let prevSid = null;
+
+        for (const row of mineRows) {
+
+            const sid = getSyndId(row);
+            const type = getMineType(row);
+
+            // сбрасываем оформление
+            [...row.cells].forEach(td => {
+                td.style.borderTop = '';
+                td.style.backgroundColor = '';
+            });
+
+            // подсветка всех 3-клеточных
+            if (type === 3) {
+                [...row.cells].forEach(td => {
+                    td.style.backgroundColor = '#eef6ff';
+                });
+            }
+
+            // разделители между группами
+            if (
+                prevType !== null &&
+                (prevType !== type || prevSid !== sid)
+            ) {
+
+                // начало блока 3-клеточных
+                if (prevType === 2 && type === 3) {
+
+                    [...row.cells].forEach(td => {
+                        td.style.borderTop = '4px solid #4a90e2';
+                    });
+
+                } else {
+
+                    [...row.cells].forEach(td => {
+                        td.style.borderTop = '2px solid #99bb99';
+                    });
+
+                }
+            }
+
+            prevType = type;
+            prevSid = sid;
+
+            tbody.appendChild(row);
+        }
+
+        console.log('[GW TARGETS] ready v1.3');
+    }
+
+    const timer = setInterval(() => {
+
+        if (document.body.innerText.includes('Топ-50 доступных для нападения рудников')) {
+
+            clearInterval(timer);
+
+            setTimeout(process, 500);
+        }
+
+    }, 500);
+
+})();
