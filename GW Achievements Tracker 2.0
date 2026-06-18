@@ -1,17 +1,18 @@
 // ==UserScript==
-// @name         GW Achievements Tracker 2.0
+// @name         GW Achievements Tracker 2.1
 // @namespace    gwars
-// @version      2.0
+// @version      2.1
 // @description  Отслеживание прогресса достижений
 // @match        https://www.gwars.io/info.ach.php*
 // @grant        none
-// @author       bazarov
+// @author       bazarov (assisted by AI)
 // ==/UserScript==
 
 (function () {
     'use strict';
 
     const STORAGE_KEY = 'gw_achievements_base_v2';
+    const STORAGE_DATE = 'gw_achievements_date_v2';
 
     let baseData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
 
@@ -50,6 +51,22 @@
         }
     });
 
+    function formatDate(timestamp) {
+
+        if (!timestamp)
+            return 'не задана';
+
+        const d = new Date(Number(timestamp));
+
+        return (
+            String(d.getDate()).padStart(2, '0') + '.' +
+            String(d.getMonth() + 1).padStart(2, '0') + '.' +
+            String(d.getFullYear()).slice(-2) + ' ' +
+            String(d.getHours()).padStart(2, '0') + ':' +
+            String(d.getMinutes()).padStart(2, '0')
+        );
+    }
+
     function saveCurrentAsBase() {
 
         const data = {};
@@ -63,15 +80,10 @@
             JSON.stringify(data)
         );
 
-        location.reload();
-    }
-
-    function resetData() {
-
-        if (!confirm('Удалить сохранённую базу?'))
-            return;
-
-        localStorage.removeItem(STORAGE_KEY);
+        localStorage.setItem(
+            STORAGE_DATE,
+            Date.now()
+        );
 
         location.reload();
     }
@@ -99,8 +111,8 @@
         marker.textContent = ` ▲ +${diff}`;
 
         marker.style.fontWeight = 'bold';
-        marker.style.color = '#f5945c';
-        marker.style.fontSize = '12px';
+        marker.style.color = '#ff0000';
+        marker.style.fontSize = '10px';
 
         const textNodes = [...a.td.childNodes];
 
@@ -121,6 +133,9 @@
         }
     });
 
+    const savedDate =
+        localStorage.getItem(STORAGE_DATE);
+
     const panel = document.createElement('div');
 
     panel.style.position = 'fixed';
@@ -129,28 +144,44 @@
     panel.style.zIndex = '99999';
     panel.style.background = '#f5fff5';
     panel.style.border = '1px solid #669966';
-    panel.style.padding = '20px';
-    panel.style.fontSize = '12px';
+    panel.style.padding = '12px';
+    panel.style.fontSize = '10px';
     panel.style.minWidth = '160px';
 
     panel.innerHTML = `
-        <div><b>Трекер достижений</b></div>
+        <div><b><center>Трекер достижений</center></b></div>
         <hr>
-        Изменено достижений: <b>${changedCount}</b></b><br><br>
+
+        Изменено достижений:
+        <b>${changedCount}</b>
+
+        <br><br>
+
+        Дата сброса:
+
+        <b style="
+            color:#104277;
+            font-weight:bold;
+        ">
+            ${formatDate(savedDate)}
+        </b>
+
+        <br><br>
     `;
 
-const saveBtn = document.createElement('button');
-saveBtn.textContent = '🔄 Сбросить счетчики';
+    const saveBtn = document.createElement('button');
 
-saveBtn.onclick = function () {
+    saveBtn.textContent = '🔄 Сбросить счетчики';
 
-    if (!confirm('Сделать текущие значения новой точкой отсчёта?'))
-        return;
+    saveBtn.onclick = function () {
 
-    saveCurrentAsBase();
-};
+        if (!confirm('Сделать текущие значения новой точкой отсчёта?'))
+            return;
 
-panel.appendChild(saveBtn);
+        saveCurrentAsBase();
+    };
+
+    panel.appendChild(saveBtn);
 
     document.body.appendChild(panel);
 
